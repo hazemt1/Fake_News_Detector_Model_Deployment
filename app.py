@@ -9,6 +9,7 @@ import re
 from textblob import TextBlob
 from nltk.corpus import stopwords
 from keras.utils.data_utils import pad_sequences
+# from keras.preprocessing.sequence import pad_sequences
 # nltk.download('stopwords')
 # nltk.download('punkt')
 from nltk.stem import SnowballStemmer
@@ -19,10 +20,12 @@ stops = set(stopwords.words("arabic"))
 lemmer = qalsadi.lemmatizer.Lemmatizer()
 port_stem = SnowballStemmer('english')
 
+
 def remove_stop_words(text):
     zen = TextBlob(text)
     words = zen.words
     return " ".join([w for w in words if not w in stops and not w in stopwords.words('english') and len(w) >= 2])
+
 
 def split_hashtag_to_words(tag):
     tag = tag.replace('#', '')
@@ -31,6 +34,7 @@ def split_hashtag_to_words(tag):
         return tags
     pattern = re.compile(r"[A-Z][a-z]+|\d+|[A-Z]+(?![a-z])")
     return pattern.findall(tag)
+
 
 def clean_hashtag(text):
     words = text.split()
@@ -42,11 +46,13 @@ def clean_hashtag(text):
             text.append(word)
     return " ".join(text)
 
+
 def is_hashtag(word):
     if word.startswith("#"):
         return True
     else:
         return False
+
 
 def extract_hashtag(text):
     hash_list = ([re.sub(r"(\W+)$", "", i) for i in text.split() if i.startswith("#")])
@@ -55,6 +61,7 @@ def extract_hashtag(text):
         word_list.extend(split_hashtag_to_words(word))
     return word_list
 
+
 def clean_tweet(text):
     text = re.sub('#\d+K\d+', ' ', str(text))  # years like 2K19
     text = re.sub('http\S+\s*', ' ', str(text))  # remove URLs
@@ -62,6 +69,7 @@ def clean_tweet(text):
     text = re.sub('@[^\s]+', ' ', str(text))
     text = clean_hashtag(str(text))
     return text
+
 
 def clean_text(text):
     text = clean_tweet(text)
@@ -73,13 +81,14 @@ def clean_text(text):
     text = re.sub(r'\\u[A-Za-z0-9\\]+', ' ', text)
     text = re.sub('\s+', ' ', text)
     try:
-        text =lemmer.lemmatize_text(text)
+        text = lemmer.lemmatize_text(text)
     except:
         print('failed')
     text = [port_stem.stem(word) for word in text]
     text = ' '.join(text)
 
     return text
+
 
 # *******************************************************************************************************************
 
@@ -88,7 +97,8 @@ model = keras.models.load_model('rnn_model.h5')
 tokenizer = pickle.load(open('tokenizer.pickle', 'rb'))
 w2v = Word2Vec.load("word2vec.model")
 
-@app.route('/predict',methods=['POST'])
+
+@app.route('/', methods=['POST'])
 def predict():
     json = request.json
     news = json['news']
@@ -108,12 +118,14 @@ def predict():
     print(output)
     return jsonify(response)
 
-@app.route('/predict_api',methods=['POST'])
+
+@app.route('/predict_api', methods=['POST'])
 def predict_api():
     data = request.get_json(force=True)
     prediction = model.predict([np.array(list(data.values()))])
     output = prediction[0]
     return jsonify(output)
 
+
 if __name__ == "__main__":
-    app.run(debug=True,threaded=True)
+    app.run(port=8000)
