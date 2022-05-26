@@ -94,9 +94,9 @@ def clean_text(text):
 # *******************************************************************************************************************
 
 app = Flask(__name__)
-model = keras.models.load_model('rnn_model.h5')
-tokenizer = pickle.load(open('tokenizer.pickle', 'rb'))
-w2v = Word2Vec.load("word2vec.model")
+model = keras.models.load_model('./rnn_model.h5')
+tokenizer = pickle.load(open('./tokenizer.pickle', 'rb'))
+w2v = Word2Vec.load("./word2vec.model")
 
 
 @app.route('/', methods=['POST'])
