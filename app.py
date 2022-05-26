@@ -10,8 +10,9 @@ from textblob import TextBlob
 from nltk.corpus import stopwords
 from keras.utils.data_utils import pad_sequences
 # from keras.preprocessing.sequence import pad_sequences
-# nltk.download('stopwords')
-# nltk.download('punkt')
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
 from nltk.stem import SnowballStemmer
 
 # *******************************************************************************************************************
