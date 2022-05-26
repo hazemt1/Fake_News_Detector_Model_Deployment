@@ -1,24 +1,31 @@
 import numpy as np
 import pandas as pd
-from flask import Flask, request, jsonify
 import pickle
-import keras
-from gensim.models import Word2Vec
-import qalsadi.lemmatizer
+import h5py
 import re
+import nltk
+import urllib
+import ast
+from flask import Flask, request, jsonify
+from keras.models import load_model
+from azure.storage.blob import BlobClient
+from io import BytesIO
 from textblob import TextBlob
 from nltk.corpus import stopwords
-from keras.utils.data_utils import pad_sequences
-# from keras.preprocessing.sequence import pad_sequences
-import nltk
-nltk.download('stopwords')
-nltk.download('punkt')
+# from keras.utils.data_utils import pad_sequences
+from keras.preprocessing.sequence import pad_sequences
 from nltk.stem import SnowballStemmer
 
+
+nltk.download('stopwords')
+nltk.download('punkt')
+
+
+with urllib.request.urlopen('https://detect0rnews.blob.core.windows.net/newcontainer/tokenizer.pickle') as f:
+    a = str(bytes(f.read()))
 # *******************************************************************************************************************
 
 stops = set(stopwords.words("arabic"))
-lemmer = qalsadi.lemmatizer.Lemmatizer()
 port_stem = SnowballStemmer('english')
 
 
@@ -81,10 +88,6 @@ def clean_text(text):
     text = re.sub("\d+", " ", text)
     text = re.sub(r'\\u[A-Za-z0-9\\]+', ' ', text)
     text = re.sub('\s+', ' ', text)
-    try:
-        text = lemmer.lemmatize_text(text)
-    except:
-        print('failed')
     text = [port_stem.stem(word) for word in text]
     text = ' '.join(text)
 
@@ -92,11 +95,17 @@ def clean_text(text):
 
 
 # *******************************************************************************************************************
+con_str = 'DefaultEndpointsProtocol=https;AccountName=detect0rnews;AccountKey=+T/vwDH865hqfCeAZsSooIPtaLgH+fXwUbfMqT7t8i0dXjgEG1yvfIj83EKCwzVqCwxINo3yRtIz+AStID/rlg==;EndpointSuffix=core.windows.net'
+blob_client = BlobClient.from_connection_string(con_str, blob_name='rnn_model.h5', container_name='newcontainer')
+downloader = blob_client.download_blob(0)
+
+with BytesIO() as f:
+    downloader.readinto(f)
+    with h5py.File(f, 'r') as h5file:
+        model = load_model(h5file)
+tokenizer = pickle.loads(ast.literal_eval(a))
 
 app = Flask(__name__)
-model = keras.models.load_model('./rnn_model.h5')
-tokenizer = pickle.load(open('./tokenizer.pickle', 'rb'))
-w2v = Word2Vec.load("./word2vec.model")
 
 
 @app.route('/', methods=['POST'])
@@ -105,7 +114,6 @@ def predict():
     news = json['news']
     news = np.array([news])
     news = pd.DataFrame(news, columns=['claim_s'])
-    print(news)
     news = news['claim_s'].apply(lambda x: clean_text(x))
     news = tokenizer.texts_to_sequences(news)
     news = pad_sequences(news, maxlen=1000)
@@ -116,16 +124,7 @@ def predict():
     response = {
         "result": float(output)
     }
-    print(output)
     return jsonify(response)
-
-
-@app.route('/predict_api', methods=['POST'])
-def predict_api():
-    data = request.get_json(force=True)
-    prediction = model.predict([np.array(list(data.values()))])
-    output = prediction[0]
-    return jsonify(output)
 
 
 if __name__ == "__main__":
