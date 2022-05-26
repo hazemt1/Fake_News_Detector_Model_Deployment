@@ -12,8 +12,8 @@ from azure.storage.blob import BlobClient
 from io import BytesIO
 from textblob import TextBlob
 from nltk.corpus import stopwords
-# from keras.utils.data_utils import pad_sequences
-from keras.preprocessing.sequence import pad_sequences
+from keras.utils.data_utils import pad_sequences
+# from keras.preprocessing.sequence import pad_sequences
 from nltk.stem import SnowballStemmer
 
 
