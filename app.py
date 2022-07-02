@@ -1,33 +1,26 @@
 import numpy as np
 import pandas as pd
 import pickle
-import h5py
 import re
 import nltk
-import urllib
-import ast
 from flask import Flask, request, jsonify
-from keras.models import load_model
+import keras
 from azure.storage.blob import BlobClient
-from io import BytesIO
 from textblob import TextBlob
 from nltk.corpus import stopwords
 from keras.utils.data_utils import pad_sequences
 # from keras.preprocessing.sequence import pad_sequences
 from nltk.stem import SnowballStemmer
-
+from nltk import ISRIStemmer
 
 nltk.download('stopwords')
 nltk.download('punkt')
 
-
-with urllib.request.urlopen('https://detect0rnews.blob.core.windows.net/newcontainer/tokenizer.pickle') as f:
-    a = str(bytes(f.read()))
 # *******************************************************************************************************************
 
 stops = set(stopwords.words("arabic"))
 port_stem = SnowballStemmer('english')
-
+ArListem = ISRIStemmer()
 
 def remove_stop_words(text):
     zen = TextBlob(text)
@@ -79,6 +72,15 @@ def clean_tweet(text):
     return text
 
 
+def stem(text):
+    zen = TextBlob(text)
+    words = zen.words
+    cleaned = list()
+    for w in words:
+        cleaned.append(ArListem.stem(w))
+    return " ".join(cleaned)
+
+
 def clean_text(text):
     text = clean_tweet(text)
     text = re.sub('[%s]' % re.escape("""!"#$%&'()*+,،-./:;<=>؟?@[\]^_`{|}~"""), ' ', text)  # remove punctuation
@@ -88,44 +90,91 @@ def clean_text(text):
     text = re.sub("\d+", " ", text)
     text = re.sub(r'\\u[A-Za-z0-9\\]+', ' ', text)
     text = re.sub('\s+', ' ', text)
-    text = [port_stem.stem(word) for word in text]
+    zen = TextBlob(text)
+    words = zen.words
+    text = [port_stem.stem(word) for word in words]
     text = ' '.join(text)
+    text = stem(text)
 
     return text
 
 
-# *******************************************************************************************************************
 con_str = 'DefaultEndpointsProtocol=https;AccountName=detect0rnews;AccountKey=+T/vwDH865hqfCeAZsSooIPtaLgH+fXwUbfMqT7t8i0dXjgEG1yvfIj83EKCwzVqCwxINo3yRtIz+AStID/rlg==;EndpointSuffix=core.windows.net'
-blob_client = BlobClient.from_connection_string(con_str, blob_name='rnn_model.h5', container_name='newcontainer')
-downloader = blob_client.download_blob(0)
 
-with BytesIO() as f:
-    downloader.readinto(f)
-    with h5py.File(f, 'r') as h5file:
-        model = load_model(h5file)
-tokenizer = pickle.loads(ast.literal_eval(a))
+
+def download_item(item_name):
+    blob_client = BlobClient.from_connection_string(con_str, blob_name=item_name, container_name='newcontainer')
+    downloader = blob_client.download_blob(0)
+    f = downloader.readall()
+    item = pickle.loads(f)
+    return item
+
+
+# *******************************************************************************************************************
+global v
+global tokenizer
+global model
+global model_weights
+global model_json
+v = 0
+tokenizer = download_item('tokenizer.pickle')
+
+model_weights = download_item('model_weights.pkl')
+model_json = download_item('model_json.pkl')
+
+model = keras.models.model_from_json(model_json)
+model.set_weights(model_weights)
+model.compile(loss="binary_crossentropy", optimizer="adam", metrics=['acc'])
 
 app = Flask(__name__)
 
 
 @app.route('/', methods=['POST'])
 def predict():
+    global v
+    global tokenizer
+    global model
+    global model_weights
+    global model_json
     json = request.json
     news = json['news']
     news = np.array([news])
     news = pd.DataFrame(news, columns=['claim_s'])
     news = news['claim_s'].apply(lambda x: clean_text(x))
+    print(news)
     news = tokenizer.texts_to_sequences(news)
     news = pad_sequences(news, maxlen=1000)
     prediction = model.predict(news)
 
     output = prediction[0][0]
-
     response = {
-        "result": float(output)
+        "result": float(output),
+        "version": v
+    }
+    return jsonify(response)
+
+
+@app.route('/update', methods=['post'])
+def update():
+    global tokenizer
+    global v
+    global model
+    global model_weights
+    global model_json
+    tokenizer = download_item('tokenizer.pickle')
+
+    model_weights = download_item('model_weights.pkl')
+    model_json = download_item('model_json.pkl')
+
+    model = keras.models.model_from_json(model_json)
+    model.set_weights(model_weights)
+    model.compile(loss="binary_crossentropy", optimizer="adam", metrics=['acc'])
+    v += 1
+    response = {
+        "result": "success"
     }
     return jsonify(response)
 
 
 if __name__ == "__main__":
-    app.run(port=8000)
+    app.run(port=8000, debug=True)
