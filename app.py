@@ -13,6 +13,10 @@ from keras.utils.data_utils import pad_sequences
 from nltk.stem import SnowballStemmer
 from arabert.preprocess import ArabertPreprocessor
 from langdetect import detect, DetectorFactory
+import jdk
+
+jdk.uninstall('15', jre=True)
+path_to_java_home = jdk.install('15', jre=True)
 DetectorFactory.seed = 0
 
 nltk.download('stopwords')
