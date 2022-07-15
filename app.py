@@ -8,8 +8,8 @@ import keras
 from azure.storage.blob import BlobClient
 from textblob import TextBlob
 from nltk.corpus import stopwords
-# from keras.utils.data_utils import pad_sequences
-from keras.preprocessing.sequence import pad_sequences
+from keras.utils.data_utils import pad_sequences
+# from keras.preprocessing.sequence import pad_sequences
 from nltk.stem import SnowballStemmer
 from arabert.preprocess import ArabertPreprocessor
 from langdetect import detect, DetectorFactory
