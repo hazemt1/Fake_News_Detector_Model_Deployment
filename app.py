@@ -13,11 +13,11 @@ from keras.utils.data_utils import pad_sequences
 from nltk.stem import SnowballStemmer
 from arabert.preprocess import ArabertPreprocessor
 from langdetect import detect, DetectorFactory
-import jdk
-
-
-path_to_java_home = jdk.install('15', jre=True)
-DetectorFactory.seed = 0
+# import jdk
+#
+#
+# path_to_java_home = jdk.install('15', jre=True)
+# DetectorFactory.seed = 0
 
 nltk.download('stopwords')
 nltk.download('punkt')
@@ -217,4 +217,4 @@ def update():
 
 
 if __name__ == "__main__":
-    app.run(port=8000,)
+    app.run(host='0.0.0.0',port=8080,)
